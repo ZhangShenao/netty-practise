@@ -1,6 +1,5 @@
 package william.nio.practise.channel;
 
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -9,9 +8,9 @@ import java.nio.channels.FileChannel;
  * @author ZhangShenao
  * @date 2023/8/3 10:17 AM
  * @description: FileChannel文件顺序写
- * <p>在JDK NIO中，使用Buffer+Channel配合的方式来实现I/O操作。Buffer作为数据的缓存，而Channel是实际数据读写的通道。</p>
- * <p>在读取时，先通过Channel将磁盘或网卡中的数据读取至Buffer，再由用户程序对Buffer进行处理</p>
- * <p>在写入时，用户程序先将数据写Buffer，再由Channel读取Buffer中的数据并写入磁盘或网卡</p>
+ * <p>在 Java NIO 中，使用 Buffer + Channel 配合的方式来实现 I/O 操作。Buffer 作为数据的缓冲，而 Channel 则是实际数据读写的通道。</p>
+ * <p>在读取时，先通过 Channel 将磁盘或网卡中的数据读取至 Buffer，再由用户程序对 Buffer 进行处理。</p>
+ * <p>在写入时，用户程序先将数据写 Buffer，再由 Channel 读取 Buffer 中的数据并写入磁盘或网卡。</p>
  */
 public class FileChannelSequentialWrite {
     
