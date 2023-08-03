@@ -11,6 +11,7 @@
     <modules>
         <module>netty-basic</module>
         <module>netty-rpc</module>
+        <module>nio-practise</module>
     </modules>
     
     <properties>
