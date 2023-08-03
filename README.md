@@ -165,29 +165,97 @@ TCP 数据报文结构：
 
 在 TCP 数据通信的过程中，接收端会根据自身的处理能力，动态调整窗口大小，间接控制发送端的发送频率。
 
+### 1.2.6 超时与重试机制
+
+#### TCP 协议管理的定时器
+
+1. 重传定时器：当发送方发出一个数据报文后，如果在指定时间内没有收到接收方的 ACK，则由重传定时器触发数据报文的重传。
+2. Persist 定时器：使窗口大小信息保持不断流动，即使另一端关闭了其接收窗口，目的是避免发送方不知道接收方的可用滑动窗口大小，从而引发发送方无法发送数据报文的问题。
+3. Keep-Alive 定时器：用于定时检测空闲连接。
+4. MSL 定时器：维护关闭连接时客户端的 TIME_WAIT 状态，保证其在等待 2MSL 后会进入 CLOSE 状态。
+
 # 2. Java NIO
 
-## 2.1 解决 Java BIO 性能问题
+## 2.1 Java NIO 核心思想
 
-## 2.2 Java NIO 原理与应用
+### Java NIO 在传统 BIO 基础上的优化
 
-# 3. Netty
+![NIO编程思想](docs/NIO编程思想.png)
 
-## 3.1 核心组件详解
+#### **面向缓冲**
 
-## 3.2 网络事件的处理
+传统的 Java BIO 是面向流的，只能逐个字节从流中读/写数据，且并没有缓冲区。而 Java NIO 提出了管道（Channel）的概念来抽象数据传输通道，同时自身提供了 Buffer 缓冲区的实现。例如在读数据时，可以先通过 Channel 将数据读入 Buffer，再由用户程序对 Buffer 中的数据进行处理，这样就可以实现高效的 I/O 操作。
 
-## 3.3 支持高并发设计
+#### 非阻塞
 
-## 3.4 内存管理组件
+在 BIO 中，当一个线程调用 read() 或 write() 时，如果数据没有 ready，则该线程会被阻塞。而 Java NIO 是非阻塞的，数据未 ready 时线程可以转而进行其他操作，待数据响应后再进行相应处理，这样就可以充分利用多核 CPU 资源。
 
-## 3.5 拆包与粘包
+#### **Selector 多路复用**
 
-## 3.6 线程模型
+Selector 是一个抽象的多路复用器，它的主要工作就是管理三类网络事件：网络连接就绪、网络读就绪和网络写就绪。多个网络线程都可以将感兴趣的网络事件注册到 Selector 中，当具体的事件触发时再由 Selector 回调具体的线程进行处理，对于每个线程来说都是非阻塞的。
 
-# 4. 手写 RPC 框架
+### Java NIO 核心组件
 
-# 5. 手写 HTTP 服务
+- Buffer：数据缓冲区，本质上就是一个内存数据块（`byte[]` 数组），并在其基础上进行了一系列读、写操作的封装，可以作为应用程序读、写数据的缓冲区。典型实现是 `ByteBuffer`。
+- Channel：应用程序与外部介质（磁盘、网卡等）之间的数据传输通道。典型实现是 `FileChannel`。
+- Selector：多路复用器。
+
+## 2.2 使用 Buffer + Channel 实现高性能 I/O
+
+**在 Java NIO 中，使用 Buffer + Channel 配合的方式来实现 I/O 操作。Buffer 作为数据的缓冲，而 Channel 则是实际数据读写的通道。**
+
+在读取时，先通过 Channel 将磁盘或网卡中的数据读取至 Buffer，再由用户程序对 Buffer 进行处理。
+
+在写入时，用户程序先将数据写 Buffer，再由 Channel 读取 Buffer 中的数据并写入磁盘或网卡。
+
+以下是顺序写文件的代码实现：
+
+```Java
+package william.nio.practise.channel;
+
+import java.io.FileOutputStream;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+
+/**
+ * @author ZhangShenao
+ * @date 2023/8/3 10:17 AM
+ * @description: FileChannel文件顺序写
+ * <p>在 Java NIO 中，使用 Buffer + Channel 配合的方式来实现 I/O 操作。Buffer 作为数据的缓冲，而 Channel 则是实际数据读写的通道。</p>
+ * <p>在读取时，先通过 Channel 将磁盘或网卡中的数据读取至 Buffer，再由用户程序对 Buffer 进行处理。</p>
+ * <p>在写入时，用户程序先将数据写 Buffer，再由 Channel 读取 Buffer 中的数据并写入磁盘或网卡。</p>
+ */
+public class FileChannelSequentialWrite {
+    
+    public static void main(String[] args) throws Exception {
+        //Step1：创建文件流
+        FileOutputStream out = new FileOutputStream(
+                "/Users/zhangshenao/Desktop/architect/Netty/netty-practise/nio-practise/src/main/java/william/nio/practise/channel/test.txt");
+        
+        //Step2: 根据文件流创建FileChannel管道
+        FileChannel channel = out.getChannel();
+        
+        //Step3: 创建Buffer缓冲区,并将数据写入Buffer
+        ByteBuffer buffer = ByteBuffer.wrap("abc".getBytes());
+        
+        //Step4: 通过Channel将Buffer中的数据写入文件
+        channel.write(buffer);
+        channel.force(true);    //强制刷盘：FileChannel会将数据写入操作系统的PageCache，并不会立即写入磁盘。force方法可以强制刷盘
+        
+        //Step5: 查看当前Buffer的状态
+        System.out.printf("position=%d\tlimit=%d\tcapacity=%d\n", buffer.position(), buffer.limit(), buffer.capacity());
+        
+        //Step6: 释放资源
+        out.close();
+        channel.close();
+    }
+}
+```
+
+### 注意事项
+
+- `FileChannel` 是一个线程安全的类，内部通过 `synchronized` 锁来实现了串行化，多个线程对同一个 FileChannel 的写入、修改偏移量等操作，都需要先获取锁。
+- `FileChannel` 的 `write()` 方法并不会立即写入磁盘，而是默认写入到操作系统的 `PageCache`，并且由操作系统来自行控制刷盘策略。如果需要强制刷盘，可以调用 `java.nio.channels.FileChannel#force` 方法。
 
 
 
