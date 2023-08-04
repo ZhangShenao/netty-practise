@@ -105,7 +105,7 @@ public class NioServer {
         System.out.println("server handle accept event");
         
         //通过TCP三次握手,与客户端建立连接,获取用于通信的SocketChannel
-        try (ServerSocketChannel serverSocketChannel = (ServerSocketChannel) selectionKey.channel();) {
+        try (ServerSocketChannel serverSocketChannel = (ServerSocketChannel) selectionKey.channel()) {
             SocketChannel channel = serverSocketChannel.accept();
             
             channel.configureBlocking(false); //将通信Channel设置为非阻塞
@@ -124,7 +124,7 @@ public class NioServer {
         System.out.println("server handle read event");
         
         //获取网络通信的Channel
-        try (SocketChannel channel = (SocketChannel) selectionKey.channel();) {
+        try (SocketChannel channel = (SocketChannel) selectionKey.channel()) {
             //分配读读缓冲区
             ByteBuffer readBuffer = ByteBuffer.allocate(DEFAULT_BUFFER_SIZE);
             
